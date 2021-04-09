@@ -31,8 +31,8 @@ namespace sig
             FIND_DoImageSpaceMotionBlur();
             FIND_HudUpdate();
             FIND_GetButtonBits();
-            FIND_Shake();
-            FIND_Fade();
+            FIND_ShakeAndFade();
+            FIND_AdjustAngles();
             print("--------", "");
         }
         private IntPtr FindFuncThroughStringRef(string targString, string name = "", string subName = "", bool checkMOV = false)
@@ -65,31 +65,16 @@ namespace sig
         {
             _context = "HudUpdate";
             print("Running method 1 -- finding \"(time_float)\" reference and retracing");
-            IntPtr ptr = FindStringAddress("(time_float)", scanner);
-            report(ptr, "string");
+            IntPtr ptr = FindFuncThroughStringRef("(time_float)", "HudUpdate");
             if (ptr == IntPtr.Zero) goto method2;
-            SigScanTarget trg = ConvertPtrToSig(ptr, 0x0, "68");
-
-            ptr = scanner.Scan(trg);
-            report(ptr, "string ref");
-
-            ptr = BackTraceToFuncStart(ptr, scanner);
-            report(ptr, "(estimated)", 2);
 
             goto eof;
 
         method2:
+            SigScanTarget trg = new SigScanTarget();
+
             print("Running method 2 -- finding LevelInitPreEntity to coerce vftable pointer");
-            ptr = FindStringAddress("cl_predict 0", scanner);
-            report(ptr, "LevelInitPreEntity string");
-
-            trg = ConvertPtrToSig(ptr, 0x0, "68");
-            ptr = scanner.Scan(trg);
-            report(ptr, "LevelInitPreEntity string ref");
-
-            ptr = BackTraceToFuncStart(ptr, scanner);
-            report(ptr, "LevelInitPreEntity func start (estimated)");
-
+            ptr = FindFuncThroughStringRef("cl_predict 0", "HudUpdate", "LevelInitPreEntity");
             trg = ConvertPtrToSig(ptr, 0x0);
             ptr = scanner.Scan(trg);
             report(ptr, "LevelInitPreEntity func CHLClient vftable pointer");
@@ -97,9 +82,9 @@ namespace sig
             // assume the function is 6 entires away
             ptr = game.ReadPointer(ptr + 6 * 4);
             report(ptr, "", 2);
-        eof:
 
-            print("", "");
+        eof:
+            ;
         }
 
         void FIND_GetButtonBits()
@@ -115,112 +100,59 @@ namespace sig
             print("", "");
         }
 
-        void FIND_Shake()
+        void FIND_ShakeAndFade()
         {
             _context = "Shake";
-            SigScanTarget trg = new SigScanTarget(0, "53 68 61 6B 65");
-            SignatureScanner tmpScanner = new SignatureScanner(game, client.BaseAddress, client.ModuleMemorySize);
-            bool found = false;
-            IntPtr ptr = server.BaseAddress;
+            IntPtr ptr = FindFuncThroughStringRef("%02d: dur(%8.2f) amp(%8.2f) freq(%8.2f)", "Shake", "CalcShake", false);
+            var trg = ConvertPtrToSig(ptr);
+            ptr = scanner.Scan(trg);
+            report(ptr, "CalcShake vftable entry");
 
-            while (ptr != IntPtr.Zero && !found)
-            {
-                trg.OnFound = (f_proc, f_scanner, f_ptr) => {
-                    var trg2 = ConvertPtrToSig(f_ptr, 0x0, "68");
-                    if (scanner.Scan(trg2) != IntPtr.Zero)
-                    {
-                        if (f_proc.ReadString(f_ptr, 20) == "Shake")
-                        {
-                            found = true;
-                        }
-                    }
-                    tmpScanner.Limit(f_ptr);
-                    return f_ptr;
-                };
-                ptr = tmpScanner.Scan(trg);
-            }
-
-            report(ptr, "string");
-
-            trg = ConvertPtrToSig(ptr, 1, "68 ?? ?? ?? ?? 68");
-            ptr = game.ReadPointer(scanner.Scan(trg));
-            report(ptr, "host func");
-            IntPtr funcStart = ptr;
-
-            ptr = TraceToFuncEnd(ptr, true);
-            report(ptr, "host func end (estimate)");
-            IntPtr funcEnd = ptr;
-
-            byte oldByte = 0x0;
-            byte curByte = 0x0;
-
-            for (int i = 0; (int)funcEnd - i > (int)funcStart; i++)
-            {
-                oldByte = curByte;
-                game.ReadValue<byte>(funcEnd - i, out curByte);
-
-                if (curByte == 0xE8 && oldByte != 0xE8)
-                {
-                    ptr = (IntPtr)(game.ReadValue<int>(funcEnd - i + 1) + (uint)(funcEnd - i + 1) + 0x4);
-                    break;
-                }
-            }
-            report(ptr, "", 2);
+            report(game.ReadPointer(ptr - 0x10), "", 2);
+            _context = "Fade";
+            report(game.ReadPointer(ptr - 0xc), "", 2);
             print("", "");
         }
 
-        void FIND_Fade()
+        void FIND_AdjustAngles()
         {
-            _context = "Fade";
-            SigScanTarget trg = new SigScanTarget(0, "46 61 64 65");
-            SignatureScanner tmpScanner = new SignatureScanner(game, client.BaseAddress, client.ModuleMemorySize);
-            bool found = false;
-            IntPtr ptr = server.BaseAddress;
+            _context = "AdjustAngles";
 
-            while (ptr != IntPtr.Zero && !found)
+            IntPtr ptr = IntPtr.Zero;
+            IntPtr ptrTmp = FindCVarBase("cl_anglespeedkey", scanner);
+            report(ptrTmp, "[DetermineKeySpeed] cvar base");
+
+        again:
+
+            ptr = ptrTmp + GetIntOffset;
+
+            var trg = ConvertPtrToSig(ptr);
+            ptr = scanner.Scan(trg);
+            if (ptr == IntPtr.Zero)
             {
-                trg.OnFound = (f_proc, f_scanner, f_ptr) => {
-                    var trg2 = ConvertPtrToSig(f_ptr, 0x0, "68");
-                    if (scanner.Scan(trg2) != IntPtr.Zero)
-                    {
-                        if (f_proc.ReadString(f_ptr, 20) == "Fade")
-                        {
-                            found = true;
-                        }
-                    }
-                    tmpScanner.Limit(f_ptr);
-                    return f_ptr;
-                };
-                ptr = tmpScanner.Scan(trg);
+                GetIntOffset = 0x18;
+                print("GetIntOffset might be wrong, setting to 0x18 instead");
+                goto again;
+            }
+            report(ptr, "[DetermineKeySpeed] cvar ref");
+
+            ptr = BackTraceToFuncStart(ptr, scanner, true);
+            report(ptr, "[DetermineKeySpeed] (estimate)");
+
+            IntPtr ptr2 = FindRelativeCallReference(ptr, 0x3000);
+            report(ptr2, "DetermineKeySpeed ref");
+
+            if (ptr2 == IntPtr.Zero)
+            {
+                print("retrying to find DetermineKeySpeed ref");
+                ptr2 = FindRelativeCallReference(ptr, 0x15000, "", "", null, (int)(ptr - 0x270000));
+                report(ptr2, "DetermineKeySpeed thunk fun");
+                ptr2 = FindRelativeCallReference(ptr2, 0x15000, "", "", null, (int)(ptr2 + 0x270000));
+                report(ptr2, "DetermineKeySpeed ref");
             }
 
-            report(ptr, "string");
-
-            trg = ConvertPtrToSig(ptr, 1, "68 ?? ?? ?? ?? 68");
-            ptr = game.ReadPointer(scanner.Scan(trg));
-            report(ptr, "host func");
-            IntPtr funcStart = ptr;
-
-            ptr = TraceToFuncEnd(ptr, true);
-            report(ptr, "host func end (estimate)");
-            IntPtr funcEnd = ptr;
-
-            byte oldByte = 0x0;
-            byte curByte = 0x0;
-
-            for (int i = 0; (int)funcEnd - i > (int)funcStart; i++)
-            {
-                oldByte = curByte;
-                game.ReadValue<byte>(funcEnd - i, out curByte);
-
-                if (curByte == 0xE8 && oldByte != 0xE8)
-                {
-                    ptr = (IntPtr)(game.ReadValue<int>(funcEnd - i + 1) + (uint)(funcEnd - i + 1) + 0x4);
-                    break;
-                }
-            }
-            report(ptr, "", 2);
-            print("", "");
+            ptr = BackTraceToFuncStart(ptr2, scanner);
+            report(ptr, "(estimate)", 2);
         }
     }
 }

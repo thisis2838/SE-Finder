@@ -13,7 +13,7 @@ namespace sig
     {
         public static Process game;
 
-        public const int GetIntOffset = 0x1C;
+        public int GetIntOffset = 0x1C;
 
         private static List<string> _processes = new List<string>( new string[]
         {
@@ -31,6 +31,7 @@ namespace sig
         public static ProcessModuleWow64Safe client;
         public static ProcessModuleWow64Safe server;
         public static ProcessModuleWow64Safe engine;
+        public static ProcessModuleWow64Safe vguim;
 
         static CLIENT _client;
         static SERVER _server;
@@ -114,8 +115,9 @@ namespace sig
             client = game.ModulesWow64Safe().FirstOrDefault(x => x.ModuleName.ToLower() == "client.dll");
             server = game.ModulesWow64Safe().FirstOrDefault(x => x.ModuleName.ToLower() == "server.dll");
             engine = game.ModulesWow64Safe().FirstOrDefault(x => x.ModuleName.ToLower() == "engine.dll");
+            vguim = game.ModulesWow64Safe().FirstOrDefault(x => x.ModuleName.ToLower() == "vguimatsurface.dll");
 
-            if (client == null || server == null || engine == null)
+            if (client == null || server == null || engine == null || vguim == null)
             {
                 prints("All modules haven't been found!", "INIT");
                 Thread.Sleep(1000);
@@ -123,6 +125,7 @@ namespace sig
             }
 
             prints("--------", "");
+            new VGUIMATSURFACE();
             _client = new CLIENT();
             _server = new SERVER();
             init = false;
@@ -197,10 +200,24 @@ namespace sig
 
         }
 
-        public static IntPtr FindRelativeCallReference(IntPtr ptr, uint bound, string prefix = "", string suffix = "", List<IntPtr> ignored = null)
+        public static IntPtr ReadCallRedirect(IntPtr ptr)
         {
             if (ptr == IntPtr.Zero)
                 return ptr;
+
+            byte[] acceptable = new byte[] { 0xE8, 0xE9 };
+            if (!acceptable.Contains(game.ReadValue<byte>(ptr)))
+                return ptr;
+
+            return (IntPtr)(game.ReadValue<int>(ptr + 0x1) + (uint)(ptr) + 0x5);
+        }
+
+        public static IntPtr FindRelativeCallReference(IntPtr ptr, uint bound,  string prefix = "", string suffix = "", List<IntPtr> ignored = null, int startHere = 0x0)
+        {
+            if (ptr == IntPtr.Zero)
+                return ptr;
+
+            IntPtr startPtr = (IntPtr)startHere;
 
             int offset = 1;
             if (prefix != "")
@@ -210,7 +227,6 @@ namespace sig
                 {
                     if (prefix[l] == ' ')
                         offset++;
-
                     l++;
                 }
                 offset++;
@@ -221,8 +237,8 @@ namespace sig
             SigScanTarget targ = new SigScanTarget(offset, prefix + " E8 ?? ?? ?? FF " + suffix);
             for (int j = 0; j <= 4; j++)
             {
-                uint end = (uint)ptr + bound2;
-                uint start = (uint)ptr - bound2;
+                uint end = (uint)(startPtr == IntPtr.Zero ? ptr : startPtr) + bound2;
+                uint start = (uint)(startPtr == IntPtr.Zero ? ptr : startPtr) - bound2;
                 bound = end - start;
 
                 SignatureScanner scanner = new SignatureScanner(game, (IntPtr)(start), (int)(bound));
@@ -269,7 +285,7 @@ namespace sig
             return ptr3 != IntPtr.Zero ? ptr3 - 0x1 : IntPtr.Zero;
         }
 
-        public static IntPtr BackTraceToFuncStart(IntPtr ptr, SignatureScanner scanner, bool checkMOV = false)
+        public static IntPtr BackTraceToFuncStart(IntPtr ptr, SignatureScanner scanner, bool checkCALL = false)
         {
             if (ptr == IntPtr.Zero)
                 return ptr;
@@ -294,7 +310,7 @@ namespace sig
                     else if (game.ReadBytes(ptr - i - 4, 4).SequenceEqual(new byte[] { 0xCC, 0xCC, 0xCC, 0xCC }) ||
                         game.ReadBytes(ptr - i - 4, 4).SequenceEqual(new byte[] { 0x90, 0x90, 0x90, 0x90 }))
                         return ptr - i + 1;
-                    else if (checkMOV && FindRelativeCallReference(ptr - i + 1, 0x2000) != IntPtr.Zero)
+                    else if (checkCALL && FindRelativeCallReference(ptr - i + 1, 0x2000) != IntPtr.Zero)
                         return ptr - i + 1;
                 }
                 else if (curbyte != oldbyte && (oldbyte >= 0x50 && oldbyte <= 0x5F) || start.Contains(oldbyte))
