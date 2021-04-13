@@ -18,15 +18,24 @@ namespace sig
             scanner = new SignatureScanner(game, vguim.BaseAddress, vguim.ModuleMemorySize);
             ModuleName = "VGUIMatSurface";
             Context = "";
+            CurModule = vguim;
             Start();
         }
 
         public void Start()
         {
+            var watch = new Stopwatch();
+            watch.Start();
+
             print("", "");
             print("Searching for vguimatsurface.dll functions / vars... \n", ModuleName, 3);
             FIND_StartDrawing();
             FIND_FinishDrawing();
+
+            Context = "";
+            Console.WriteLine("");
+            print($"VGUIMatSurface scanning done after {watch.Elapsed}");
+            Console.WriteLine("");
             print("--------", "");
         }
 

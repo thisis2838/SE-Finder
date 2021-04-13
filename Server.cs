@@ -15,12 +15,16 @@ namespace sig
         {
             scanner = new SignatureScanner(game, server.BaseAddress, server.ModuleMemorySize);
             ModuleName = "server";
+            CurModule = server;
             Context = "";
             Start();
         }
 
         public void Start()
         {
+            var watch = new Stopwatch();
+            watch.Start();
+
             print("", "");
             print("Searching for server.dll functions / vars... \n", "server", 3);
             Context = "";
@@ -31,7 +35,11 @@ namespace sig
             FIND_ReadAll();
             FIND_CreateEntityByName();
             FIND_DispatchSpawn();
+
             Context = "";
+            Console.WriteLine("");
+            print($"Server scanning done after {watch.Elapsed}");
+            Console.WriteLine("");
             print("--------", "");
         }
 

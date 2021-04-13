@@ -15,12 +15,16 @@ namespace sig
         {
             scanner = new SignatureScanner(game, client.BaseAddress, client.ModuleMemorySize);
             ModuleName = "client";
+            CurModule = client;
             Context = "";
             Start();
         }
 
         public void Start()
         {
+            var watch = new Stopwatch();
+            watch.Start();
+
             print("", "");
             print("Searching for client.dll functions / vars... \n", "client", 3);
             FIND_DoImageSpaceMotionBlur();
@@ -28,6 +32,11 @@ namespace sig
             FIND_GetButtonBits();
             FIND_ShakeAndFade();
             FIND_AdjustAngles();
+
+            Context = "";
+            Console.WriteLine("");
+            print($"Client scanning done after {watch.Elapsed}");
+            Console.WriteLine("");
             print("--------", "");
         }
 
@@ -92,7 +101,7 @@ namespace sig
         void FIND_AdjustAngles()
         {
             Context = "AdjustAngles";
-
+            print("WARNING! MIGHT NOT BE ACCURATE ESPECIALLY FOR OLD ENGINE!!!!!", " ", 7);
             IntPtr ptr = IntPtr.Zero;
             IntPtr ptrTmp = FindCVarBase("cl_anglespeedkey", scanner);
             report(ptrTmp, "[DetermineKeySpeed] cvar base");

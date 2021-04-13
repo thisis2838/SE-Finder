@@ -33,6 +33,8 @@ namespace sig
         public static ProcessModuleWow64Safe engine;
         public static ProcessModuleWow64Safe vguim;
 
+        public static ProcessModuleWow64Safe CurModule;
+
         public static void prints(string msg, string tag = "", int highlight = 0, bool inPlace = false)
         {
             Console.Write(tag != "" ? $"[{tag.ToUpper()}] " : "");
@@ -60,6 +62,9 @@ namespace sig
                     break;
                 case 6:
                     Console.ForegroundColor = ConsoleColor.Cyan;
+                    break;
+                case 7:
+                    Console.ForegroundColor = ConsoleColor.DarkYellow;
                     break;
             }
             if (inPlace)
@@ -328,6 +333,34 @@ namespace sig
             }
         }
 
+        public static bool IsInVFTable(IntPtr ptr)
+        {
+            if (ptr == IntPtr.Zero)
+                return false;
+
+            bool isInside(uint test)
+            {
+                return test >= (uint)CurModule.BaseAddress && test <= (uint)(CurModule.BaseAddress + CurModule.ModuleMemorySize);
+            }
+
+            /*
+            if (isInside(game.ReadValue<uint>(ptr - 0x4)) || isInside(game.ReadValue<uint>(ptr + 0x4)))
+            {
+                return game.ReadBytes(game.ReadPointer(ptr - 0x4), 3).Any(x => isFuncStartByte(x)) || 
+                    game.ReadBytes(game.ReadPointer(ptr + 0x4), 3).Any(x => isFuncStartByte(x));    
+            }
+            */
+
+            // for now go lenient
+            return (isInside(game.ReadValue<uint>(ptr - 0x4)) || isInside(game.ReadValue<uint>(ptr + 0x4)));
+        }
+
+        private static bool isFuncStartByte(byte a)
+        {
+            List<byte> start = new List<byte>(new byte[] { 0x6A, 0x68, 0xA1, 0xFF, 0x83, 0x81 });
+            return (a >= 0x50 && a <= 0x5F) || start.Contains(a);
+        }
+
         public static IntPtr BackTraceToFuncStart(IntPtr ptr, SignatureScanner scanner, bool checkCALL = false)
         {
             int pos = Console.CursorTop;
@@ -342,7 +375,6 @@ namespace sig
                 }
 
                 List<byte> nop = new List<byte>(new byte[] { 0xCC, 0x90 });
-                List<byte> start = new List<byte>(new byte[] { 0x6A, 0x68, 0xA1, 0xFF, 0x83, 0x81 });
 
                 byte curbyte = 0x0;
                 byte oldbyte = 0x0;
@@ -360,7 +392,7 @@ namespace sig
                     if (nop.Contains(curbyte) && !nop.Contains(oldbyte))
                     {
                         found = scanner.Scan(ConvertPtrToSig(ptr - i + 1));
-                        if (found != IntPtr.Zero)
+                        if (IsInVFTable(found))
                             return ptr - i + 1;
                         else if (game.ReadBytes(ptr - i - 4, 4).SequenceEqual(new byte[] { 0xCC, 0xCC, 0xCC, 0xCC }) ||
                             game.ReadBytes(ptr - i - 4, 4).SequenceEqual(new byte[] { 0x90, 0x90, 0x90, 0x90 }))
@@ -368,8 +400,8 @@ namespace sig
                         else if (checkCALL && FindRelativeCallReference(ptr - i + 1, 0x10000) != IntPtr.Zero)
                             return ptr - i + 1;
                     }
-                    else if (curbyte != oldbyte && (oldbyte >= 0x50 && oldbyte <= 0x5F) || start.Contains(oldbyte))
-                        if (scanner.Scan(ConvertPtrToSig(ptr - i + 1)) != IntPtr.Zero || 
+                    else if (curbyte != oldbyte && isFuncStartByte(oldbyte))
+                        if (IsInVFTable(scanner.Scan(ConvertPtrToSig(ptr - i + 1))) || 
                             (checkCALL && FindRelativeCallReference(ptr - i + 1, 0x3000) != IntPtr.Zero))
                             return ptr - i + 1;
                 }
