@@ -10,17 +10,12 @@ namespace sig
     {
 
         private SignatureScanner scanner;
-        private const string _moduleName = "client";
-        public void print(string msg, string tag = _moduleName, int highlight = 0) =>
-            prints(tag == "" ? msg : (_context == "" ? "" : $"[{_context}] ") + msg, tag, highlight);
-        public void report(IntPtr ptr, string name = "", int highlightLevel = 1) =>
-            reports(ptr, _context == "" ? "" : (name == "" ? $"[{_context}]" : $"[{_context}] ") + name, highlightLevel, _moduleName);
-        private string _context = "";
-
 
         public CLIENT()
         {
             scanner = new SignatureScanner(game, client.BaseAddress, client.ModuleMemorySize);
+            ModuleName = "client";
+            Context = "";
             Start();
         }
 
@@ -35,37 +30,17 @@ namespace sig
             FIND_AdjustAngles();
             print("--------", "");
         }
-        private IntPtr FindFuncThroughStringRef(string targString, string name = "", string subName = "", bool checkMOV = false)
-        {
-            _context = name;
-            subName = subName == "" ? "" : $"[{subName}] ";
-            IntPtr ptr = FindStringAddress(targString, scanner);
-            report(ptr, subName + "string");
-
-            if (ptr == IntPtr.Zero)
-                return IntPtr.Zero;
-
-            SigScanTarget trg = ConvertPtrToSig(ptr, 0x0, "68");
-            ptr = scanner.Scan(trg);
-            report(ptr, subName + "string ref");
-
-            ptr = BackTraceToFuncStart(ptr, scanner, checkMOV);
-            report(ptr, subName + "(estimated)", 2);
-            if (subName == "")
-                print("", "");
-            return ptr;
-        }
 
         void FIND_DoImageSpaceMotionBlur()
         {
-            FindFuncThroughStringRef("dev/motion_blur", "DoImageSpaceMotionBlur");
+            FindFuncThroughStringRef("dev/motion_blur", scanner, "DoImageSpaceMotionBlur");
         }
 
         void FIND_HudUpdate()
         {
-            _context = "HudUpdate";
+            Context = "HudUpdate";
             print("Running method 1 -- finding \"(time_float)\" reference and retracing");
-            IntPtr ptr = FindFuncThroughStringRef("(time_float)", "HudUpdate");
+            IntPtr ptr = FindFuncThroughStringRef("(time_float)", scanner, "HudUpdate");
             if (ptr == IntPtr.Zero) goto method2;
 
             goto eof;
@@ -74,7 +49,7 @@ namespace sig
             SigScanTarget trg = new SigScanTarget();
 
             print("Running method 2 -- finding LevelInitPreEntity to coerce vftable pointer");
-            ptr = FindFuncThroughStringRef("cl_predict 0", "HudUpdate", "LevelInitPreEntity");
+            ptr = FindFuncThroughStringRef("cl_predict 0", scanner, "HudUpdate", "LevelInitPreEntity");
             trg = ConvertPtrToSig(ptr, 0x0);
             ptr = scanner.Scan(trg);
             report(ptr, "LevelInitPreEntity func CHLClient vftable pointer");
@@ -89,7 +64,7 @@ namespace sig
 
         void FIND_GetButtonBits()
         {
-            _context = "GetButtonBits";
+            Context = "GetButtonBits";
             var target = new SigScanTarget(0, "81 ce 00 00 20 00");
             target.AddSignature(0, "0d 00 00 20 00");
             var ptr = scanner.Scan(target);
@@ -102,21 +77,21 @@ namespace sig
 
         void FIND_ShakeAndFade()
         {
-            _context = "Shake";
-            IntPtr ptr = FindFuncThroughStringRef("%02d: dur(%8.2f) amp(%8.2f) freq(%8.2f)", "Shake", "CalcShake", false);
+            Context = "Shake";
+            IntPtr ptr = FindFuncThroughStringRef("%02d: dur(%8.2f) amp(%8.2f) freq(%8.2f)", scanner, "Shake", "CalcShake", false);
             var trg = ConvertPtrToSig(ptr);
             ptr = scanner.Scan(trg);
             report(ptr, "CalcShake vftable entry");
 
             report(game.ReadPointer(ptr - 0x10), "", 2);
-            _context = "Fade";
+            Context = "Fade";
             report(game.ReadPointer(ptr - 0xc), "", 2);
             print("", "");
         }
 
         void FIND_AdjustAngles()
         {
-            _context = "AdjustAngles";
+            Context = "AdjustAngles";
 
             IntPtr ptr = IntPtr.Zero;
             IntPtr ptrTmp = FindCVarBase("cl_anglespeedkey", scanner);

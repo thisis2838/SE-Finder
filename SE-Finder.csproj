@@ -45,6 +45,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Engine.cs" />
     <Compile Include="VGUIMatSurface.cs" />
     <Compile Include="Server.cs" />
     <Compile Include="Client.cs" />

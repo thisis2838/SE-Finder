@@ -9,18 +9,13 @@ namespace sig
 {
     class SERVER : Run
     {
-
         private SignatureScanner scanner;
-        const string _moduleName = "server";
-        public void print(string msg, string tag = _moduleName, int highlight = 0) =>
-            prints(tag == "" ? msg : (_context == "" ? "" : $"[{_context}] ") + msg, tag, highlight);
-        public void report(IntPtr ptr, string name = "", int highlightLevel = 1) =>
-            reports(ptr, _context == "" ? "" : (name == "" ? $"[{_context}]" : $"[{_context}] ") + name, highlightLevel, _moduleName);
-        private string _context = "";
 
         public SERVER()
         {
             scanner = new SignatureScanner(game, server.BaseAddress, server.ModuleMemorySize);
+            ModuleName = "server";
+            Context = "";
             Start();
         }
 
@@ -28,7 +23,7 @@ namespace sig
         {
             print("", "");
             print("Searching for server.dll functions / vars... \n", "server", 3);
-            _context = "";
+            Context = "";
             FIND_CheckVelocity();
             FIND_CheckJumpButton();
             FIND_FinishGravity();
@@ -36,36 +31,15 @@ namespace sig
             FIND_ReadAll();
             FIND_CreateEntityByName();
             FIND_DispatchSpawn();
-            _context = "";
+            Context = "";
             print("--------", "");
-        }
-
-        private IntPtr FindFuncThroughStringRef(string targString, string name = "", string subName = "", bool checkMOV = false)
-        {
-            _context = name;
-            subName = subName == "" ? "" : $"[{subName}] ";
-            IntPtr ptr = FindStringAddress(targString, scanner);
-            report(ptr, subName + "string");
-
-            if (ptr == IntPtr.Zero)
-                return IntPtr.Zero;
-
-            SigScanTarget trg = ConvertPtrToSig(ptr, 0x0, "68");
-            ptr = scanner.Scan(trg);
-            report(ptr, subName + "string ref");
-
-            ptr = BackTraceToFuncStart(ptr, scanner, checkMOV);
-            report(ptr, subName + "(estimated)", 2);
-            if (subName == "")
-                print("", "");
-            return ptr;
         }
 
         private IntPtr PTR_CheckVelocity;
 
         private void FIND_CheckVelocity()
         {
-            PTR_CheckVelocity = FindFuncThroughStringRef("PM  Got a NaN velocity", "CheckVelocity", "", true);
+            PTR_CheckVelocity = FindFuncThroughStringRef("PM  Got a NaN velocity", scanner, "CheckVelocity", "", true);
         }
 
         private List<IntPtr> _checkJumpButtonMatches = new List<IntPtr>();
@@ -78,7 +52,7 @@ namespace sig
                     _checkJumpButtonMatches.Add(inPtr);
             }
 
-            _context = "CheckJumpButton";
+            Context = "CheckJumpButton";
 
             #region method1
             print("Running method 1 -- finding \"xc_uncrouch_on_jump\" string ref and retracing");
@@ -203,7 +177,7 @@ namespace sig
 
         private void FIND_FinishGravity()
         {
-            _context = "FinishGravity";
+            Context = "FinishGravity";
 
             print("Running method 1 -- looking 1 above CheckJumpButton in CGameMovement vftable");
             IntPtr ptr;
@@ -318,12 +292,12 @@ namespace sig
 
         private void FIND_CheckStuck()
         {
-            FindFuncThroughStringRef("%s stuck on object %i/%s", "CheckStuck");
+            FindFuncThroughStringRef("%s stuck on object %i/%s", scanner, "CheckStuck");
         }
 
         private void FIND_ReadAll()
         {
-            IntPtr ptr = FindFuncThroughStringRef("Expected %s found %s ( raw '%s' )", "ReadAll", "ReadFields");
+            IntPtr ptr = FindFuncThroughStringRef("Expected %s found %s ( raw '%s' )", scanner, "ReadAll", "ReadFields");
             var trg = ConvertPtrToSig(ptr, -0x4);
             ptr = game.ReadPointer(scanner.Scan(trg));
             report(ptr, "", 2);
@@ -331,7 +305,7 @@ namespace sig
             if (ptr == IntPtr.Zero)
                 return;
 
-            _context = "DoReadAll";
+            Context = "DoReadAll";
             var tmpScanner = new SignatureScanner(game, ptr, 0x200);
             trg = new SigScanTarget(1, "e8 ?? ?? ?? ??");
             trg.OnFound = (f_proc, f_scanner, f_ptr) => {
@@ -344,12 +318,12 @@ namespace sig
 
         private void FIND_CreateEntityByName()
         {
-            FindFuncThroughStringRef("CreateEntityByName( %s, %d )", "CreateEntityByName");
+            FindFuncThroughStringRef("CreateEntityByName( %s, %d )", scanner, "CreateEntityByName");
         }
 
         private void FIND_DispatchSpawn()
         {
-            _context = "DispatchSpawn";
+            Context = "DispatchSpawn";
             print("Running method 1 -- finding \"Entity %s not found, and couldn\'t create!\" string ref and retracing");
             IntPtr ptr = FindStringAddress("Entity %s not found, and couldn\'t create!\n", scanner);
             report(ptr, "string");

@@ -13,7 +13,7 @@ namespace sig
     {
         public static Process game;
 
-        public int GetIntOffset = 0x1C;
+        public static int GetIntOffset = 0x1C;
 
         private static List<string> _processes = new List<string>( new string[]
         {
@@ -33,10 +33,7 @@ namespace sig
         public static ProcessModuleWow64Safe engine;
         public static ProcessModuleWow64Safe vguim;
 
-        static CLIENT _client;
-        static SERVER _server;
-
-        public static void prints(string msg, string tag = "", int highlight = 0)
+        public static void prints(string msg, string tag = "", int highlight = 0, bool inPlace = false)
         {
             Console.Write(tag != "" ? $"[{tag.ToUpper()}] " : "");
             switch (highlight)
@@ -61,13 +58,19 @@ namespace sig
                 case 5:
                     Console.ForegroundColor = ConsoleColor.Blue;
                     break;
+                case 6:
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    break;
             }
-            Console.WriteLine(msg);
+            if (inPlace)
+                Console.Write(msg);
+            else 
+                Console.WriteLine(msg);
             Console.ForegroundColor = ConsoleColor.White;
             Console.BackgroundColor = ConsoleColor.Black;
         }
 
-        public void reports(IntPtr ptr, string name = "", int highlightLevel = 0, string tag = "")
+        public static void reports(IntPtr ptr, string name = "", int highlightLevel = 0, string tag = "")
         {
             int fail = 0;
             int success = 0;
@@ -90,7 +93,32 @@ namespace sig
                 prints(name + " found at 0x" + ptr.ToString("X"), tag, success);
         }
 
-        static void Main(string[] args)
+        public static string Context = "";
+        public static string ModuleName = "";
+
+        public static void print(string msg, string tag = " ", int highlight = 0)
+        {
+            tag = tag == " " ? ModuleName : tag;
+            prints(tag == "" ? msg : (Context == "" ? "" : $"[{Context}] ") + msg, tag, highlight);
+        }
+
+        public static void report(IntPtr ptr, string name = "", int highlightLevel = 1)
+        {
+            reports(ptr, Context == "" ? "" : (name == "" ? $"[{Context}]" : $"[{Context}] ") + name, highlightLevel, ModuleName);
+        }
+
+        private static void clearUpTo(int line)
+        {
+            int curline = Console.CursorTop;
+            for (int i = line; i < curline; i++)
+            {
+                Console.SetCursorPosition(0, i);
+                Console.Write(new string(' ', Console.WindowWidth));
+            }
+            Console.SetCursorPosition(0, line);
+        }
+
+        private static void Main(string[] args)
         {
             bool isGameRunning = false;
             while (true)
@@ -107,7 +135,7 @@ namespace sig
             }
         }
 
-        static void Init()
+        private static void Init()
         {
             Console.Clear();
             prints($"Found process {_processes[i]}", "INIT");
@@ -126,12 +154,13 @@ namespace sig
 
             prints("--------", "");
             new VGUIMATSURFACE();
-            _client = new CLIENT();
-            _server = new SERVER();
+            new ENGINE();
+            new CLIENT();
+            new SERVER();
             init = false;
         }
 
-        static bool GetProcess()
+        private static bool GetProcess()
         {
             try
             {
@@ -214,111 +243,144 @@ namespace sig
 
         public static IntPtr FindRelativeCallReference(IntPtr ptr, uint bound,  string prefix = "", string suffix = "", List<IntPtr> ignored = null, int startHere = 0x0)
         {
-            if (ptr == IntPtr.Zero)
-                return ptr;
-
-            IntPtr startPtr = (IntPtr)startHere;
-
-            int offset = 1;
-            if (prefix != "")
+            int pos = Console.CursorTop;
+            try
             {
-                int l = 0;
-                while (l <= prefix.Length - 1)
-                {
-                    if (prefix[l] == ' ')
-                        offset++;
-                    l++;
-                }
-                offset++;
-            }
+                prints($"Finding relative call reference to 0x{ptr.ToString("X")}", "util", 6);
+                prints("");
+                if (ptr == IntPtr.Zero)
+                    return ptr;
 
-            IntPtr ptr3 = IntPtr.Zero;
-            uint bound2 = bound;
-            SigScanTarget targ = new SigScanTarget(offset, prefix + " E8 ?? ?? ?? FF " + suffix);
-            for (int j = 0; j <= 4; j++)
-            {
-                uint end = (uint)(startPtr == IntPtr.Zero ? ptr : startPtr) + bound2;
-                uint start = (uint)(startPtr == IntPtr.Zero ? ptr : startPtr) - bound2;
-                bound = end - start;
+                IntPtr startPtr = (IntPtr)startHere;
 
-                SignatureScanner scanner = new SignatureScanner(game, (IntPtr)(start), (int)(bound));
-                bool found = false;
-                do
+                int offset = 1;
+                if (prefix != "")
                 {
-                    targ.OnFound = (proc2, scanner2, ptr2) =>
+                    int l = 0;
+                    while (l <= prefix.Length - 1)
                     {
-                        uint target = (uint)(proc2.ReadValue<int>(ptr2) + (uint)ptr2 + 0x4);
-
-                        if (target == (uint)ptr)
-                        {
-                            if (ignored != null)
-                            {
-                                if (!ignored.Contains(ptr2))
-                                    found = true;
-                            }
-                            else found = true;
-                        }
-                        scanner.Limit(ptr2);
-                        return ptr2;
-                    };
-                    ptr3 = scanner.Scan(targ);
-                }
-                while (!found && ptr3 != IntPtr.Zero);
-
-                if (ptr3 == IntPtr.Zero)
-                {
-                    switch (j)
-                    {
-                        case 1:
-                            targ = new SigScanTarget(offset, prefix + " E8 ?? ?? ?? 00 " + suffix);
-                            break;
-                        case 2:
-                            targ = new SigScanTarget(offset, prefix + " E9 ?? ?? ?? FF " + suffix);
-                            break;
-                        case 3:
-                            targ = new SigScanTarget(offset, prefix + " E9 ?? ?? ?? 00 " + suffix);
-                            break;
+                        if (prefix[l] == ' ')
+                            offset++;
+                        l++;
                     }
+                    offset++;
                 }
-                else break;
+
+                bool found = false;
+                IntPtr ptr3 = IntPtr.Zero;
+                uint bound2 = bound;
+                SigScanTarget targ = new SigScanTarget(offset, prefix + " E8 ?? ?? ?? FF " + suffix);
+                for (int j = 0; j <= 4; j++)
+                {
+                    uint end = (uint)(startPtr == IntPtr.Zero ? ptr : startPtr) + bound2;
+                    uint start = (uint)(startPtr == IntPtr.Zero ? ptr : startPtr) - bound2;
+                    bound = end - start;
+
+                    SignatureScanner scanner = new SignatureScanner(game, (IntPtr)(start), (int)(bound));
+                    found = false;
+                    do
+                    {
+                        targ.OnFound = (proc2, scanner2, ptr2) =>
+                        {
+                            uint target = (uint)(proc2.ReadValue<int>(ptr2) + (uint)ptr2 + 0x4);
+
+                            Console.SetCursorPosition(0, Console.CursorTop - 1);
+                            prints($"Call at 0x{ptr2.ToString("X")} to 0x{target:X}, left {scanner2.Size:X}              ", "util", 6);
+
+                            if (target == (uint)ptr)
+                            {
+                                if (ignored != null)
+                                {
+                                    if (!ignored.Contains(ptr2))
+                                        found = true;
+                                }
+                                else found = true;
+                            }
+                            scanner.Limit(ptr2);
+                            return ptr2;
+                        };
+                        ptr3 = scanner.Scan(targ);
+                    }
+                    while (!found && ptr3 != IntPtr.Zero && scanner.Size > targ.Signatures[0].Pattern.Length);
+
+                    if (ptr3 == IntPtr.Zero || !found)
+                    {
+                        switch (j)
+                        {
+                            case 1:
+                                targ = new SigScanTarget(offset, prefix + " E8 ?? ?? ?? 00 " + suffix);
+                                break;
+                            case 2:
+                                targ = new SigScanTarget(offset, prefix + " E9 ?? ?? ?? FF " + suffix);
+                                break;
+                            case 3:
+                                targ = new SigScanTarget(offset, prefix + " E9 ?? ?? ?? 00 " + suffix);
+                                break;
+                        }
+                    }
+                    else break;
+                }
+                return (ptr3 != IntPtr.Zero) ? ptr3 - 0x1 : IntPtr.Zero;
             }
-            return ptr3 != IntPtr.Zero ? ptr3 - 0x1 : IntPtr.Zero;
+            finally
+            {
+                clearUpTo(pos);
+            }
         }
 
         public static IntPtr BackTraceToFuncStart(IntPtr ptr, SignatureScanner scanner, bool checkCALL = false)
         {
-            if (ptr == IntPtr.Zero)
-                return ptr;
-
-            List<byte> nop = new List<byte>(new byte[] { 0xCC, 0x90 });
-            List<byte> start = new List<byte>(new byte[] { 0x6A, 0x68, 0xA1, 0xFF, 0x83, 0x81 });
-
-            byte curbyte = 0x0;
-            byte oldbyte = 0x0;
-
-            for (int i = 0x0; i < 0x5000; i++)
+            int pos = Console.CursorTop;
+            try
             {
-                IntPtr found = IntPtr.Zero;
-                oldbyte = curbyte;
-                game.ReadValue<byte>(ptr - i, out curbyte);
+                prints($"Backtracing from 0x{ptr.ToString("X")}...", "util", 6);
 
-                if (nop.Contains(curbyte) && !nop.Contains(oldbyte))
+                if (ptr == IntPtr.Zero)
                 {
-                    found = scanner.Scan(ConvertPtrToSig(ptr - i + 1));
-                    if (found != IntPtr.Zero)
-                        return ptr - i + 1;
-                    else if (game.ReadBytes(ptr - i - 4, 4).SequenceEqual(new byte[] { 0xCC, 0xCC, 0xCC, 0xCC }) ||
-                        game.ReadBytes(ptr - i - 4, 4).SequenceEqual(new byte[] { 0x90, 0x90, 0x90, 0x90 }))
-                        return ptr - i + 1;
-                    else if (checkCALL && FindRelativeCallReference(ptr - i + 1, 0x2000) != IntPtr.Zero)
-                        return ptr - i + 1;
+                    Console.SetCursorPosition(0, Console.CursorTop - 1);
+                    return ptr;
                 }
-                else if (curbyte != oldbyte && (oldbyte >= 0x50 && oldbyte <= 0x5F) || start.Contains(oldbyte))
-                    if (scanner.Scan(ConvertPtrToSig(ptr - i + 1)) != IntPtr.Zero)
-                        return ptr - i + 1;
+
+                List<byte> nop = new List<byte>(new byte[] { 0xCC, 0x90 });
+                List<byte> start = new List<byte>(new byte[] { 0x6A, 0x68, 0xA1, 0xFF, 0x83, 0x81 });
+
+                byte curbyte = 0x0;
+                byte oldbyte = 0x0;
+
+                prints("");
+                for (int i = 0x0; i < 0x5000; i++)
+                {
+                    IntPtr found = IntPtr.Zero;
+                    oldbyte = curbyte;
+                    game.ReadValue<byte>(ptr - i, out curbyte);
+
+                    Console.SetCursorPosition(0, Console.CursorTop - 1);
+                    prints($"Try #{i}, current byte {curbyte:X02}", "util", 6);
+
+                    if (nop.Contains(curbyte) && !nop.Contains(oldbyte))
+                    {
+                        found = scanner.Scan(ConvertPtrToSig(ptr - i + 1));
+                        if (found != IntPtr.Zero)
+                            return ptr - i + 1;
+                        else if (game.ReadBytes(ptr - i - 4, 4).SequenceEqual(new byte[] { 0xCC, 0xCC, 0xCC, 0xCC }) ||
+                            game.ReadBytes(ptr - i - 4, 4).SequenceEqual(new byte[] { 0x90, 0x90, 0x90, 0x90 }))
+                            return ptr - i + 1;
+                        else if (checkCALL && FindRelativeCallReference(ptr - i + 1, 0x10000) != IntPtr.Zero)
+                            return ptr - i + 1;
+                    }
+                    else if (curbyte != oldbyte && (oldbyte >= 0x50 && oldbyte <= 0x5F) || start.Contains(oldbyte))
+                        if (scanner.Scan(ConvertPtrToSig(ptr - i + 1)) != IntPtr.Zero || 
+                            (checkCALL && FindRelativeCallReference(ptr - i + 1, 0x3000) != IntPtr.Zero))
+                            return ptr - i + 1;
+                }
+
+                return IntPtr.Zero;
+            }
+            finally
+            {
+                clearUpTo(pos);
             }
 
-            return IntPtr.Zero;
         }
 
         public static IntPtr TraceToFuncEnd(IntPtr ptr, bool early = false)
@@ -338,7 +400,6 @@ namespace sig
                 return scanner.Scan(trg1);
             }
 
-
             var trg2 = new SigScanTarget();
             trg2.AddSignature(-1, "CC CC CC CC");
             trg2.AddSignature(0, "C3 CC CC CC");
@@ -348,6 +409,28 @@ namespace sig
 
             return scanner.Scan(trg2);
 
+        }
+
+        public static IntPtr FindFuncThroughStringRef(string targString, SignatureScanner scanner, 
+            string name = "", string subName = "", bool checkCall = false)
+        {
+            Context = name;
+            subName = subName == "" ? "" : $"[{subName}] ";
+            IntPtr ptr = FindStringAddress(targString, scanner);
+            report(ptr, subName + "string");
+
+            if (ptr == IntPtr.Zero)
+                return IntPtr.Zero;
+
+            SigScanTarget trg = ConvertPtrToSig(ptr, 0x0, "68");
+            ptr = scanner.Scan(trg);
+            report(ptr, subName + "string ref");
+
+            ptr = BackTraceToFuncStart(ptr, scanner, checkCall);
+            report(ptr, subName + "(estimated)", 2);
+            if (subName == "")
+                print("", "");
+            return ptr;
         }
 
         /*
