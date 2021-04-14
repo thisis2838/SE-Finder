@@ -218,7 +218,7 @@ namespace sig
             IntPtr candidate;
             do
             {
-                candidate = FindRelativeCallReference(PTR_CheckVelocity, 0x2000, "", "", checkVelRefSources);
+                candidate = FindRelativeCallReference(PTR_CheckVelocity, 0x3000, "", "", checkVelRefSources);
                 if (candidate != IntPtr.Zero)
                 {
                     checkVelRefSources.Add(candidate + 1);

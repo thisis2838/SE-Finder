@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 
@@ -121,6 +122,10 @@ namespace sig
                 Console.Write(new string(' ', Console.WindowWidth));
             }
             Console.SetCursorPosition(0, line);
+        }
+        public static void Cap(ref uint target, uint min, uint max)
+        {
+            target = (target < min) ? min : ((target > max) ? max : target);
         }
 
         private static void Main(string[] args)
@@ -246,7 +251,7 @@ namespace sig
             return (IntPtr)(game.ReadValue<int>(ptr + 0x1) + (uint)(ptr) + 0x5);
         }
 
-        public static IntPtr FindRelativeCallReference(IntPtr ptr, uint bound,  string prefix = "", string suffix = "", List<IntPtr> ignored = null, int startHere = 0x0)
+        public static IntPtr FindRelativeCallReference(IntPtr ptr, uint bound, string prefix = "", string suffix = "", List<IntPtr> ignored = null, int startHere = 0x0)
         {
             int pos = Console.CursorTop;
             try
@@ -275,10 +280,12 @@ namespace sig
                 IntPtr ptr3 = IntPtr.Zero;
                 uint bound2 = bound;
                 SigScanTarget targ = new SigScanTarget(offset, prefix + " E8 ?? ?? ?? FF " + suffix);
-                for (int j = 0; j <= 4; j++)
+                for (int j = 1; j <= 4; j++)
                 {
                     uint end = (uint)(startPtr == IntPtr.Zero ? ptr : startPtr) + bound2;
                     uint start = (uint)(startPtr == IntPtr.Zero ? ptr : startPtr) - bound2;
+                    Cap(ref start, (uint)CurModule.BaseAddress, (uint)(CurModule.BaseAddress + CurModule.ModuleMemorySize));
+                    Cap(ref end, (uint)CurModule.BaseAddress, (uint)(CurModule.BaseAddress + CurModule.ModuleMemorySize));
                     bound = end - start;
 
                     SignatureScanner scanner = new SignatureScanner(game, (IntPtr)(start), (int)(bound));
@@ -289,8 +296,8 @@ namespace sig
                         {
                             uint target = (uint)(proc2.ReadValue<int>(ptr2) + (uint)ptr2 + 0x4);
 
-                            Console.SetCursorPosition(0, Console.CursorTop - 1);
-                            prints($"Call at 0x{ptr2.ToString("X")} to 0x{target:X}, left {scanner2.Size:X}              ", "util", 6);
+                            //Console.SetCursorPosition(0, Console.CursorTop - 1);
+                            //prints($"Call at 0x{ptr2.ToString("X")} to 0x{target:X}, left {scanner2.Size:X}              ", "util", 6);
 
                             if (target == (uint)ptr)
                             {
@@ -402,7 +409,7 @@ namespace sig
                     }
                     else if (curbyte != oldbyte && isFuncStartByte(oldbyte))
                         if (IsInVFTable(scanner.Scan(ConvertPtrToSig(ptr - i + 1))) || 
-                            (checkCALL && FindRelativeCallReference(ptr - i + 1, 0x3000) != IntPtr.Zero))
+                            (checkCALL && FindRelativeCallReference(ptr - i + 1, 0x10000) != IntPtr.Zero))
                             return ptr - i + 1;
                 }
 
@@ -465,93 +472,5 @@ namespace sig
             return ptr;
         }
 
-        /*
-        public static IntPtr BackTraceToFuncStart(IntPtr ptr, SignatureScanner scanner){
-
-            // common function headers
-            var targStart = new SigScanTarget();
-            targStart.AddSignature(1, "CC 55");
-            targStart.AddSignature(1, "CC 51");
-            targStart.AddSignature(1, "CC 83");
-            targStart.AddSignature(1, "CC 81");
-            targStart.AddSignature(1, "CC A1");
-            targStart.AddSignature(3, "C2 ???? 55");
-            targStart.AddSignature(3, "C2 ???? 51");
-            targStart.AddSignature(3, "C2 ???? A1");
-            targStart.AddSignature(3, "C2 ???? 83");
-            targStart.AddSignature(3, "C2 ???? 81");
-
-            // search for at least 5 int 3 instructions
-            var targStart2 = new SigScanTarget();
-            targStart2.AddSignature(0, "CC CC CC CC CC");
-
-            int j = 0x0;
-
-            for (int i = 0x50; i < 0x3000; i += 0x16)
-            {
-                var newScanner = new SignatureScanner(game, ptr - i, i);
-                var firstPtr = newScanner.Scan(targStart);
-
-                if (firstPtr != IntPtr.Zero)
-                {
-                    // if we hit what seems like a function header, find if that pointer is referenced anywhere
-                    // this will only account for vftable entries or mov instructions
-                    // call opcodes uses an offset from its subsequent instruction which isn't feasable to scan
-                    var secondPtr = scanner.Scan(ConvertPtrToSig(firstPtr, 0x0, "", ""));
-
-                    if (secondPtr == IntPtr.Zero)
-                        secondPtr = FindRelativeCallReference(firstPtr, 0x10000, "", "");
-
-                    if (secondPtr != IntPtr.Zero)
-                        return firstPtr;
-                    else
-                    {
-                        // try checking if at least 5 int 3 instructions preceed the function header if we
-                        // can't find an absolute reference to the function
-                        j = 0x10;
-                        var newerScanner = new SignatureScanner(game, firstPtr - j, j + 1);
-                        var thirdPtr = newerScanner.Scan(targStart2);
-                        if (thirdPtr != IntPtr.Zero)
-                            return firstPtr;
-                    }
-                }
-            }
-
-            byte curbyte = 0x0;
-            byte oldbyte = 0x0;
-            byte nopbyte = 0x0;
-
-            for (j = 0x0; j < 2; j++)
-            {
-                switch (j)
-                {
-                    case 0:
-                        nopbyte = 0x90;
-                        break;
-                    case 1:
-                        nopbyte = 0xCC;
-                        break;
-                }
-
-                for (int i = 0x0; i < 0x3000; i++)
-                {
-                    IntPtr found = IntPtr.Zero;
-                    oldbyte = curbyte;
-                    game.ReadValue<byte>(ptr - i, out curbyte);
-
-                    if (curbyte == 0x90 && oldbyte != 0x90)
-                    {
-                        found = FindRelativeCallReference(ptr - i + 1, 0x10000, "", "");
-                        if (found != IntPtr.Zero)
-                            return ptr - i + 1;
-                        else if (game.ReadBytes(ptr - i - 4, 4).SequenceEqual(new byte[] { nopbyte, nopbyte, nopbyte, nopbyte }))
-                            return ptr - i + 1;
-                    }
-                }
-            }
-
-            return IntPtr.Zero;
-        }
-        */
     }
 }

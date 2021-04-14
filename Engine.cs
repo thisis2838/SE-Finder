@@ -1,6 +1,7 @@
 ﻿
 using LiveSplit.ComponentUtil;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 
@@ -27,6 +28,7 @@ namespace sig
 
             print("", "");
             print("Searching for engine.dll functions / vars... \n", ModuleName, 3);
+            FIND_SpawnPlayer();
             FIND_FinishRestore();
             FIND_SetPaused();
             FIND_Record();
@@ -70,7 +72,7 @@ namespace sig
 
         void FIND_Record()
         {
-            FindFuncThroughStringRef("Can't record on dedicated server.\n", scanner, "Record");
+            FindFuncThroughStringRef("record <demoname> [incremental]\n", scanner, "Record");
         }
 
         private IntPtr PTR_Host_Runframe;
@@ -166,27 +168,58 @@ namespace sig
             report(funcEnd, "[_Host_RunFrame_Server] func end");
 
             var tmpScanner = new SignatureScanner(game, ptr, (int)(funcEnd - (int)ptr));
-            var trg = new SigScanTarget(1, "5? E8 ?? ?? ?? ?? 83 C4 04");
+            var trg = new SigScanTarget(0, "E8 ?? ?? ?? ?? 83 C4 04 FF");
 
-            bool found = false;
-            do
-            {
-                trg.OnFound = (f_proc, f_scanner, f_ptr) =>
-                {
-                    if (game.ReadValue<byte>(f_ptr - 0x1) >= 0x50 && game.ReadValue<byte>(f_ptr - 0x1) <= 0x5F)
-                    {
-                        found = true;
-                        return ReadCallRedirect(f_ptr);
-                    }
-                    f_scanner.Limit(f_ptr);
-                    return f_ptr;
-                };
-                ptr = tmpScanner.Scan(trg);
-            }
-            while (ptr != IntPtr.Zero && !found);
-
+            trg.OnFound = (f_proc, f_scanner, f_ptr) => ReadCallRedirect(f_ptr);
             ptr = tmpScanner.Scan(trg);
             report(ptr, "", 2);
+            print("", "");
+        }
+
+        void FIND_SpawnPlayer()
+        {
+            Context = "SpawnPlayer";
+
+            IntPtr spawnPtr = FindFuncThroughStringRef("CBaseClient::SpawnPlayer", scanner, "SpawnPlayer", "CBaseClient::SpawnPlayer", true);
+            IntPtr ptr = FindFuncThroughStringRef("serverGameDLL->LevelInit", scanner, "SpawnPlayer", "Host_NewGame", true);
+            IntPtr endPtr = TraceToFuncEnd(ptr);
+            report(endPtr, "[Host_NewGame] func end");
+
+            if (endPtr == IntPtr.Zero)
+                return;
+
+            var tmpScanner = new SignatureScanner(game, ptr, (int)(endPtr - (int)ptr));
+            var trg = new SigScanTarget(2, "c6 05 ?? ?? ?? ?? 01");
+            trg.OnFound = (f_proc, f_scanner, f_ptr) => f_proc.ReadPointer(f_ptr);
+
+            IntPtr bLoadPtr = tmpScanner.Scan(trg);
+            report(bLoadPtr, "m_bLoadgame ptr");
+
+            if (bLoadPtr == IntPtr.Zero)
+                return;
+
+            List<IntPtr> ignored = new List<IntPtr>();
+            int i = 0;
+            trg = ConvertPtrToSig(bLoadPtr, 0, "80 ??", "00");
+            do
+            {
+                i++;
+                IntPtr refPtr = FindRelativeCallReference(spawnPtr, 0x200000, "", "", ignored);
+                report(refPtr, $"candidate function #{i} CBaseClient::SpawnPlayer ref");
+                ptr = BackTraceToFuncStart(refPtr, scanner);
+                report(ptr, $"candidate function #{i} start");
+                IntPtr end = TraceToFuncEnd(ptr, true);
+                report(end, $"candidate function #{i} end");
+                if (ptr == IntPtr.Zero)
+                    break;
+                tmpScanner = new SignatureScanner(game, ptr, (int)(end - (int)ptr));
+                if (tmpScanner.Scan(trg) != IntPtr.Zero)
+                    break;
+                ignored.Add(refPtr + 1);
+            }
+            while (ptr != IntPtr.Zero);
+            report(ptr, "", 2);
+            print("", "");
         }
 
     }

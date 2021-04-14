@@ -114,9 +114,14 @@ namespace sig
             ptr = scanner.Scan(trg);
             if (ptr == IntPtr.Zero)
             {
-                GetIntOffset = 0x18;
-                print("GetIntOffset might be wrong, setting to 0x18 instead");
-                goto again;
+                if (GetIntOffset != 0x18)
+                {
+                    GetIntOffset = 0x18;
+                    print("GetIntOffset might be wrong, setting to 0x18 instead");
+                    goto again;
+                }
+                else
+                    GetIntOffset = 0x1c;
             }
             report(ptr, "[DetermineKeySpeed] cvar ref");
 
