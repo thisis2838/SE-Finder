@@ -34,13 +34,13 @@ This table will list all functions and variables that the tool will seek out for
     <th colspan="7">Support range</th>
   </tr>
   <tr>
-    <td>SE2003*</td>
-    <td>SE 2004</td>
-    <td>SE 2006</td>
-    <td>SE 2007</td>
-    <td>SE 2009</td>
-    <td>SE 2013</td>
-    <td>SE2011*</td>
+    <td>SE2003</td>
+    <td>SE2004</td>
+    <td>SE2006</td>
+    <td>SE2007</td>
+    <td>SE2009</td>
+    <td>SE2013</td>
+    <td>SE2011</td>
   </tr>
 </thead>
 <tbody>
@@ -48,7 +48,7 @@ This table will list all functions and variables that the tool will seek out for
     <td rowspan="2">VGUIMatSurface</td>
     <td>StartDrawing()</td>
     <td>❌</td>
-    <td></td>
+    <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
@@ -58,7 +58,7 @@ This table will list all functions and variables that the tool will seek out for
   <tr>
     <td>FinishDrawing()</td>
     <td>❌</td>
-    <td></td>
+    <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
@@ -69,8 +69,8 @@ This table will list all functions and variables that the tool will seek out for
     <td rowspan="8">Engine</td>
     <td>SpawnPlayer()</td>
     <td></td>
-    <td></td>
-    <td></td>
+    <td>❌</td>
+    <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
@@ -79,8 +79,8 @@ This table will list all functions and variables that the tool will seek out for
   <tr>
     <td>FinishRestore()</td>
     <td></td>
-    <td></td>
-    <td></td>
+    <td>✔️</td>
+    <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
@@ -89,8 +89,8 @@ This table will list all functions and variables that the tool will seek out for
   <tr>
     <td>SetPaused()</td>
     <td></td>
-    <td></td>
-    <td></td>
+    <td>✔️</td>
+    <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
@@ -99,8 +99,8 @@ This table will list all functions and variables that the tool will seek out for
   <tr>
     <td>Record()</td>
     <td></td>
-    <td></td>
-    <td></td>
+    <td>✔️</td>
+    <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
@@ -109,8 +109,8 @@ This table will list all functions and variables that the tool will seek out for
   <tr>
     <td>SV_ActivateServer()</td>
     <td></td>
-    <td></td>
-    <td></td>
+    <td>✔️</td>
+    <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
@@ -119,8 +119,8 @@ This table will list all functions and variables that the tool will seek out for
   <tr>
     <td>Host_Runframe()</td>
     <td></td>
-    <td></td>
-    <td></td>
+    <td>✔️</td>
+    <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
@@ -130,7 +130,7 @@ This table will list all functions and variables that the tool will seek out for
     <td>Host_AccumulateTime()</td>
     <td></td>
     <td></td>
-    <td></td>
+    <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
@@ -140,11 +140,82 @@ This table will list all functions and variables that the tool will seek out for
     <td>SV_Frame()</td>
     <td></td>
     <td></td>
-    <td></td>
-    <td>➖</td>
+    <td>✔️</td>
+    <td>✔️</td>
     <td>✔️</td>
     <td>✔️</td>
     <td>❌</td>
+  </tr>
+  <tr>
+    <td rowspan="7">Client</td>
+    <td>DoImageSpaceMotionBlur()</td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td>✔️</td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>HudUpdate()</td>
+    <td></td>
+    <td>✔️</td>
+    <td>✔️</td>
+    <td></td>
+    <td>✔️</td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>GetButtonBits()</td>
+    <td></td>
+    <td>✔️</td>
+    <td>✔️</td>
+    <td></td>
+    <td>✔️</td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Shake()</td>
+    <td></td>
+    <td>✔️</td>
+    <td>✔️</td>
+    <td></td>
+    <td>✔️</td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Fade()</td>
+    <td></td>
+    <td>✔️</td>
+    <td>✔️</td>
+    <td></td>
+    <td>✔️</td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>AdjustAngles()</td>
+    <td></td>
+    <td>➖</td>
+    <td>➖</td>
+    <td></td>
+    <td>✔️</td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>CreateMove()</td>
+    <td></td>
+    <td>✔️</td>
+    <td>✔️</td>
+    <td></td>
+    <td>✔️</td>
+    <td></td>
+    <td></td>
   </tr>
 </tbody>
 </table>
