@@ -39,33 +39,12 @@ namespace sig
             print("--------", "");
         }
 
-        private IntPtr FindFuncThroughStringRef(string targString, string name = "", string subName = "", bool checkMOV = false)
-        {
-            Context = name;
-            subName = subName == "" ? "" : $"[{subName}] ";
-            IntPtr ptr = FindStringAddress(targString, scanner);
-            report(ptr, subName + "string");
-
-            if (ptr == IntPtr.Zero)
-                return IntPtr.Zero;
-
-            SigScanTarget trg = ConvertPtrToSig(ptr, 0x0, "68");
-            ptr = scanner.Scan(trg);
-            report(ptr, subName + "string ref");
-
-            ptr = BackTraceToFuncStart(ptr, scanner, checkMOV);
-            report(ptr, subName + "(estimated)", 2);
-            if (subName == "")
-                print("", "");
-            return ptr;
-        }
-
-
         private IntPtr PTR_StartDrawing = IntPtr.Zero;
 
         void FIND_StartDrawing()
         {
-            PTR_StartDrawing = FindFuncThroughStringRef("-pixel_offset_x", "StartDrawing");
+            PTR_StartDrawing = FindFuncThroughStringRef("-pixel_offset_x", scanner, "StartDrawing");
+            print("", "");
         }
 
         void FIND_FinishDrawing()

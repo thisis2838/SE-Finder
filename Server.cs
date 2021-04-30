@@ -36,6 +36,9 @@ namespace sig
             FIND_CreateEntityByName();
             FIND_DispatchSpawn();
 
+            if (SPECIFICS_CreateMoveInServer)
+                FIND_CreateMove();
+
             Context = "";
             Console.WriteLine("");
             print($"Server scanning done after {watch.Elapsed}");
@@ -374,6 +377,22 @@ namespace sig
             goto method2jmp;
 
             eof:
+            print("", "");
+        }
+
+        void FIND_CreateMove()
+        {
+            Context = "CreateMove";
+
+            IntPtr ptr = FindCVarBase("sv_noclipduringpause", scanner);
+            report(ptr, "cvar base");
+
+            SigScanTarget trg = ConvertPtrToSig(ptr + GetIntOffset);
+            ptr = scanner.Scan(trg);
+            report(ptr, "cvar reference");
+
+            ptr = BackTraceToFuncStart(ptr, scanner, true);
+            report(ptr, "", 2);
             print("", "");
         }
     }

@@ -205,7 +205,18 @@ namespace LiveSplit.ComponentUtil
                 || read != (SizeT)bytes.Length)
                 return false;
 
-            val = is64Bit ? (IntPtr)BitConverter.ToInt64(bytes, 0) : (IntPtr)BitConverter.ToUInt32(bytes, 0);
+            try
+            {
+                val = is64Bit ? (IntPtr)BitConverter.ToInt64(bytes, 0) : (IntPtr)BitConverter.ToUInt32(bytes, 0);
+            }
+            catch (OverflowException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"[UTIL] [ReadPointer] bad pointer!!!, addr {addr.ToString("X")}, value {ReadValue<uint>(process, addr):X}");
+                Console.ForegroundColor = ConsoleColor.White;
+                val = IntPtr.Zero;
+                return false;
+            }
 
             return true;
         }

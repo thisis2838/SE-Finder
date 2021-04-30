@@ -16,6 +16,8 @@ namespace sig
 
         public static int GetIntOffset = 0x1C;
 
+        public static bool SPECIFICS_CreateMoveInServer = false;
+
         private static List<string> _processes = new List<string>( new string[]
         {
             "bms",
@@ -287,6 +289,9 @@ namespace sig
                     Cap(ref start, (uint)CurModule.BaseAddress, (uint)(CurModule.BaseAddress + CurModule.ModuleMemorySize));
                     Cap(ref end, (uint)CurModule.BaseAddress, (uint)(CurModule.BaseAddress + CurModule.ModuleMemorySize));
                     bound = end - start;
+
+                    if (bound <= 0)
+                        break;
 
                     SignatureScanner scanner = new SignatureScanner(game, (IntPtr)(start), (int)(bound));
                     found = false;

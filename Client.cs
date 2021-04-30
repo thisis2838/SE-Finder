@@ -16,6 +16,7 @@ namespace sig
             scanner = new SignatureScanner(game, client.BaseAddress, client.ModuleMemorySize);
             ModuleName = "client";
             CurModule = client;
+            SPECIFICS_CreateMoveInServer = false;
             Context = "";
             Start();
         }
@@ -32,6 +33,7 @@ namespace sig
             FIND_GetButtonBits();
             FIND_ShakeAndFade();
             FIND_AdjustAngles();
+            FIND_CreateMove();
 
             Context = "";
             Console.WriteLine("");
@@ -142,6 +144,30 @@ namespace sig
 
             ptr = BackTraceToFuncStart(ptr2, scanner);
             report(ptr, "(estimate)", 2);
+            Console.WriteLine("");
+        }
+
+        void FIND_CreateMove()
+        {
+            Context = "CreateMove";
+
+            IntPtr ptr = FindCVarBase("sv_noclipduringpause", scanner);
+            report(ptr, "cvar base");
+
+            if (ptr == IntPtr.Zero)
+            {
+                SPECIFICS_CreateMoveInServer = true;
+                print("CreateMove might be in server instead....");
+                return;
+            }
+
+            SigScanTarget trg = ConvertPtrToSig(ptr + GetIntOffset);
+            ptr = scanner.Scan(trg);
+            report(ptr, "cvar reference");
+
+            ptr = BackTraceToFuncStart(ptr, scanner, true);
+            report(ptr, "", 2);
+            print("", "");
         }
     }
 }
