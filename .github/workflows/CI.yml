@@ -22,7 +22,7 @@ jobs:
       run: nuget restore
     - uses: microsoft/setup-msbuild@v1
     - name: Build
-      run: msbuild /m /nologo /t:Build /p:Configuration=Release /p:AllowedReferenceRelatedFileExtensions=none /p:DefineConstants="NOVERIFY" SE-Finder.sln
+      run: msbuild /m /nologo /t:Build /p:Configuration=Release /p:AllowedReferenceRelatedFileExtensions=none /p:DefineConstants="NOVERIFY" SE-Finder-Rewrite.sln
     - name: Prepare artifacts
       run: rm \a\SE-Finder-Rewrite\SE-Finder-Rewrite\bin\* -Include *.config, *.pdb, *.xml
     - uses: actions/upload-artifact@v2
