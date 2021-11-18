@@ -24,8 +24,8 @@ jobs:
     - name: Build
       run: msbuild /m /nologo /t:Build /p:Configuration=Release /p:AllowedReferenceRelatedFileExtensions=none /p:DefineConstants="NOVERIFY" SE-Finder.sln
     - name: Prepare artifacts
-      run: rm \a\SE-Finder\SE-Finder\bin\Release\* -Include *.config, *.pdb, *.xml
+      run: rm \a\SE-Finder-Rewrite\SE-Finder-Rewrite\bin\* -Include *.config, *.pdb, *.xml
     - uses: actions/upload-artifact@v2
       with:
         name: Portable
-        path: \a\SE-Finder\SE-Finder\bin\Release
+        path: \a\SE-Finder-Rewrite\SE-Finder-Rewrite\bin\
