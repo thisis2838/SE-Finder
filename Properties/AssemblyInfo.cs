@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("sig")]
+[assembly: AssemblyTitle("SE-Finder-Rewrite")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("sig")]
+[assembly: AssemblyProduct("SE-Finder-Rewrite")]
 [assembly: AssemblyCopyright("Copyright ©  2021")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("4d9379fd-7958-4d39-9b6d-3d1b61d70f9a")]
+[assembly: Guid("900f076d-ba64-40c1-92b0-12638ed010ed")]
 
 // Version information for an assembly consists of the following four values:
 //

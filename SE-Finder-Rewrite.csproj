@@ -4,10 +4,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{4D9379FD-7958-4D39-9B6D-3D1B61D70F9A}</ProjectGuid>
+    <ProjectGuid>{900F076D-BA64-40C1-92B0-12638ED010ED}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>sig</RootNamespace>
-    <AssemblyName>sig</AssemblyName>
+    <RootNamespace>SE_Finder_Rewrite</RootNamespace>
+    <AssemblyName>SE-Finder-Rewrite</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -45,20 +45,29 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Engine.cs" />
-    <Compile Include="VGUIMatSurface.cs" />
-    <Compile Include="Server.cs" />
-    <Compile Include="Client.cs" />
-    <Compile Include="Run.cs" />
+    <Compile Include="Src\Client.cs" />
+    <Compile Include="Src\Engine.cs" />
+    <Compile Include="Src\Module.cs" />
+    <Compile Include="Src\Server.cs" />
+    <Compile Include="Src\VGUIMatSurface.cs" />
+    <Compile Include="Utils\Extensions\ByteExtensions.cs" />
+    <Compile Include="Utils\Extensions\IntPtrExtensions.cs" />
+    <Compile Include="Utils\Numerics.cs" />
+    <Compile Include="Utils\Extensions\ScannerExtensions.cs" />
+    <Compile Include="Utils\Extensions\StringExtensions.cs" />
+    <Compile Include="Utils\FunctionPointer.cs" />
+    <Compile Include="Utils\PrintHelper.cs" />
+    <Compile Include="Utils\SignatureScanner.cs" />
+    <Compile Include="Utils\DeepPointer.cs" />
+    <Compile Include="Utils\Extensions\ProcessExtensions.cs" />
+    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="utils\WinAPI.cs" />
-    <Compile Include="utils\SignatureScanner.cs" />
-    <Compile Include="utils\ProcessExtensions.cs" />
-    <Compile Include="utils\MemoryWatcher.cs" />
-    <Compile Include="utils\DeepPointer.cs" />
+    <Compile Include="Utils\Tests.cs" />
+    <Compile Include="Utils\WinAPI.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

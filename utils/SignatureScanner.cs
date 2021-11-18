@@ -1,31 +1,220 @@
-﻿using System;
-using System.Collections;
+﻿using LiveSplit.ComponentUtil;
+using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using static SE_Finder_Rewrite.Utils.StringExtensions;
 
-#pragma warning disable 1591
-
-// Note: Please be careful when modifying this because it could break existing components!
-
-namespace LiveSplit.ComponentUtil
+namespace SE_Finder_Rewrite.Utils
 {
-    public class SignatureScanner
+    class Signature
     {
-        private byte[] _memory;
-        private Process _process;
-        private IntPtr _address;
-        private int _size;
-
-        public IntPtr Address
+        public byte[] Bytes;
+        public ByteCompareType[] Masks;
+        public int Offset;
+        public Func<IntPtr, bool> EvaluateMatch
         {
-            get { return _address; }
+            get
+            {
+                if (_evaluateMatch == null)
+                    return new Func<IntPtr, bool>((a) => { return true; });
+                return _evaluateMatch;
+            }
+            set
+            {
+                if (value == null)
+                    _evaluateMatch = new Func<IntPtr, bool>((a) => { return true; });
+                else _evaluateMatch = value;
+            }
+        }
+
+        private Func<IntPtr, bool> _evaluateMatch = null;
+
+        public string Name;
+        public int Length => Bytes?.Count() ?? 0;
+
+        public Signature(string mask, int offset = 0, Func<IntPtr, bool> match = null, string name = "")
+        {
+            mask = mask.Replace(" ", "");
+
+            if (mask.Length < 2)
+                throw new Exception("Signature length can't be less than 2!");
+
+            Name = name;
+            Offset = offset;
+            EvaluateMatch = match;
+
+            string[] bytes = mask.SplitInParts(2).ToArray();
+            Bytes = new byte[bytes.Count()];
+            Masks = new ByteCompareType[bytes.Count()];
+
+            for (int i = 0; i < bytes.Count(); i++)
+            {
+                string part = bytes[i].Trim();
+                byte.TryParse(part.Trim('?'), System.Globalization.NumberStyles.HexNumber , null, out Bytes[i]);
+
+                int j = part.IndexOf('?');
+                if (j != -1)
+                {
+                    if (part.All(x => x == '?'))
+                    {
+                        Bytes[i] = 0;
+                        Masks[i] = ByteCompareType.Any;
+                        continue;
+                    }
+
+                    switch (j)
+                    {
+                        case 0:
+                            Masks[i] = ByteCompareType.UpperNibble;
+                            continue;
+                        case 1:
+                            Masks[i] = ByteCompareType.LowerNibble;
+                            continue;
+                    }
+                }
+            }
+
+        }
+
+        public string PrintByte(int i)
+        {
+            if (Bytes.Count() <= i)
+                throw new Exception("Index beyond array bounds!");
+
+            switch (Masks[i])
+            {
+                case ByteCompareType.Full:
+                    return Bytes[i].ToString("x2");
+                case ByteCompareType.Any:
+                    return "??";
+                case ByteCompareType.UpperNibble:
+                    return "?" + Bytes[i].ToString("x2").Trim('0');
+                case ByteCompareType.LowerNibble:
+                    return Bytes[i].ToString("x2").Trim('0') + "?";
+            }
+
+            return "";
+        }
+
+        public override string ToString()
+        {
+            string output =  $"Sig [{Name}] Bytes [";
+            for (int i = 0; i < Bytes.Count(); i++)
+                output += $"{PrintByte(i)} ";
+            output = output.TrimEnd(' ');
+            output += "]";
+
+            return output;
+        }
+    }
+
+
+    class SigCollection
+    {
+        public List<Signature> Signatures = new List<Signature>();
+        public Func<IntPtr, bool> EvaluateMatch
+        {
+            get
+            {
+                if (_evaluateMatch == null)
+                    return new Func<IntPtr, bool>((a) => { return true; });
+                return _evaluateMatch;
+            }
+            set
+            {
+                if (value == null)
+                    _evaluateMatch = new Func<IntPtr, bool>((a) => { return true; });
+                else _evaluateMatch = value;
+            }
+        }
+
+        private Func<IntPtr, bool> _evaluateMatch = null;
+        public string Name = "";
+
+        public SigCollection(params Signature[] sigs)
+        {
+            foreach (Signature sig in sigs)
+                Signatures.Add(sig);
+        }
+
+        public SigCollection()
+        {
+
+        }
+
+        public SigCollection(string name, Func<IntPtr, bool> match, params Signature[] sigs)
+        {
+            Name = name;
+            EvaluateMatch = match;
+
+            foreach (Signature sig in sigs)
+                Signatures.Add(sig);
+        }
+
+        public SigCollection(params string[] sigs)
+        {
+            foreach (string sig in sigs)
+                Signatures.Add(new Signature(sig));
+        }
+
+        public void Add(params Signature[] sigs)
+        {
+            foreach (Signature sig in sigs)
+                Signatures.Add(sig);
+        }
+
+        public void Add(params string[] sigs)
+        {
+            foreach (string sig in sigs)
+                Signatures.Add(new Signature(sig));
+        }
+
+        public override string ToString()
+        {
+            StringBuilder output = new StringBuilder();
+            output.AppendLine($"Sig Collection [{Name}] Count [{Signatures.Count}]");
+
+            Signatures.ForEach(x => output.AppendLine(x.ToString()));
+
+            return output.ToString();
+        }
+    }
+
+    class SigScanner
+    {
+        private Process _process;
+        private byte[] _memory;
+        private IntPtr _start;
+        private int _size;
+        public IntPtr End => _start + _size;
+        public Func<IntPtr, bool> EvaluateMatch
+        {
+            get
+            {
+                if (_evaluateMatch == null)
+                    return new Func<IntPtr, bool>((a) => { return true; });
+                return _evaluateMatch;
+            }
+            set
+            {
+                if (value == null)
+                    _evaluateMatch = new Func<IntPtr, bool>((a) => { return true; });
+                else _evaluateMatch = value;
+            }
+        }
+
+        private Func<IntPtr, bool> _evaluateMatch = null;
+
+        public IntPtr Start
+        {
+            get { return _start; }
             set
             {
                 _memory = null;
-                _address = value;
+                _start = value;
             }
         }
 
@@ -59,300 +248,175 @@ namespace LiveSplit.ComponentUtil
             }
         }
 
-        public SignatureScanner(Process proc, IntPtr addr, int size)
+        public SigScanner(Process proc, IntPtr start, int size)
         {
-            if (proc == null)
-                throw new ArgumentNullException(nameof(proc));
-            if (addr == IntPtr.Zero)
-                throw new ArgumentException("addr cannot be IntPtr.Zero.", nameof(addr));
-            if (size <= 0)
-                throw new ArgumentException("size cannot be less than zero.", nameof(size));
+            Process = proc;
+            Start = start;
+            Size = size;
 
-            _process = proc;
-            _address = addr;
-            _size = size;
             _memory = new byte[1];
         }
 
-        public SignatureScanner(byte[] mem)
+        public SigScanner(Process proc, IntPtr start, IntPtr end)
         {
-            if (mem == null)
-                throw new ArgumentNullException(nameof(mem));
+            if (!start.IsSmaller(end))
+                throw new Exception("Start pointer can't be bigger than end pointer!");
+            
+            Process = proc;
+            Start = start;
+            Size = end.SubtractI(start);
 
+            _memory = new byte[1];
+        }
+
+        public SigScanner(byte[] mem)
+        {
+            Size = mem.Length;
+            _start = (IntPtr.Zero);
             _memory = mem;
-            _size = mem.Length;
         }
 
-        // backwards compat method signature
-        public IntPtr Scan(SigScanTarget target)
-        {
-            return Scan(target, 1);
-        }
-
-        public void Limit(IntPtr ptr)
-        {
-            _size -= (int)(ptr + 0x1) - (int)_address;
-            _address = ptr + 0x1;
-        }
-
-        public IntPtr Scan(SigScanTarget target, int align)
-        {
-            if ((long)_address % align != 0)
-                throw new ArgumentOutOfRangeException(nameof(align), "start address must be aligned");
-
-            return ScanAll(target, align).FirstOrDefault();
-        }
-
-        public IEnumerable<IntPtr> ScanAll(SigScanTarget target, int align = 1)
-        {
-            if ((long)_address % align != 0)
-                throw new ArgumentOutOfRangeException(nameof(align), "start address must be aligned");
-
-            return ScanInternal(target, align);
-        }
-
-        IEnumerable<IntPtr> ScanInternal(SigScanTarget target, int align)
+        private void UpdateMemory()
         {
             if (_memory == null || _memory.Length != _size)
-            {
-                byte[] bytes;
-
-                if (!_process.ReadBytes(_address, _size, out bytes))
-                {
-                    _memory = null;
-                    yield break;
-                }
-
-                _memory = bytes;
-            }
-
-            foreach (SigScanTarget.Signature sig in target.Signatures)
-            {
-                // have to implement IEnumerator manually because you can't yield in an unsafe block...
-                foreach (int off in new ScanEnumerator(_memory, align, sig))
-                {
-                    var ptr = _address + off + sig.Offset;
-                    if (target.OnFound != null)
-                        ptr = target.OnFound(_process, this, ptr);
-                    yield return ptr;
-                }
-            }
+                Memory = _process.ReadBytes(_start, _size);
         }
 
-        class ScanEnumerator : IEnumerator<int>, IEnumerable<int>
+        public unsafe IntPtr Scan(Signature sig)
         {
-            // IEnumerator
-            public int Current { get; private set; }
-            object IEnumerator.Current { get { return Current; } }
+            int size = _size;
+            int lengthMask = sig.Length;
 
-            private readonly byte[] _memory;
-            private readonly int _align;
-            private readonly SigScanTarget.Signature _sig;
+            if (size < lengthMask)
+                return IntPtr.Zero;
 
-            private readonly int _sigLen;
-            private readonly int _end;
+            UpdateMemory();
 
-            private int _nextIndex;
-
-            public ScanEnumerator(byte[] mem, int align, SigScanTarget.Signature sig)
+            fixed (byte* mem = _memory)
+            fixed (byte* bytes = sig.Bytes)
+            fixed (ByteCompareType* masks = sig.Masks)
             {
-                if (mem.Length < sig.Pattern.Length)
-                    throw new ArgumentOutOfRangeException(nameof(mem), "memory buffer length must be >= pattern length");
-
-                _memory = mem;
-                _align = align;
-                _sig = sig;
-
-                _sigLen = _sig.Pattern.Length;
-                _end = _memory.Length - _sigLen;
-            }
-
-            // IEnumerator
-            public bool MoveNext()
-            {
-                return _sig.Mask != null ? NextPattern() : NextBytes();
-            }
-            public void Reset()
-            {
-                _nextIndex = 0;
-            }
-            public void Dispose()
-            {
-            }
-
-            // IEnumerable
-            public IEnumerator<int> GetEnumerator()
-            {
-                return this;
-            }
-            IEnumerator IEnumerable.GetEnumerator()
-            {
-                return this;
-            }
-
-            unsafe bool NextPattern()
-            {
-                fixed (bool* mask = _sig.Mask)
-                fixed (byte* mem = _memory, sig = _sig.Pattern)
+                for (int i = 0, j = 0; i <= _size - lengthMask; i++)
                 {
-                    // perf: locals are MUCH faster than properties and fields, especially on writes
-                    int end = _end;
-                    int sigLen = _sigLen;
-                    int align = _align;
-                    int index = _nextIndex; // biggest speed increase
-
-                    for (; index < end; index += align) // index++ would be ~7% faster
+                    for (j = 0; j < lengthMask; j++)
                     {
-                        for (int sigIndex = 0; sigIndex < sigLen; sigIndex++)
-                        {
-                            if (mask[sigIndex])
-                                continue;
-                            if (sig[sigIndex] != mem[index + sigIndex])
-                                goto next;
-                        }
-
-                        // fully matched
-                        Current = index;
-                        _nextIndex = index + align;
-                        return true;
-
-                        next:
-                        ;
+                        if (!bytes[j].CompareByte(mem[i + j], masks[j]))
+                            goto next;
                     }
 
-                    return false;
+                    IntPtr ptr = (_start + i + sig.Offset);
+                    if (sig.EvaluateMatch(ptr) && EvaluateMatch(ptr))
+                        return ptr;
+
+                    next:
+                    ;
                 }
             }
 
-            unsafe bool NextBytes()
+            return IntPtr.Zero;
+        }
+
+        public unsafe List<IntPtr> ScanAll(Signature sig)
+        {
+            List<IntPtr> output = new List<IntPtr>();
+
+            int size = _size;
+            int lengthMask = sig.Length;
+
+            if (size < lengthMask)
+                return output;
+
+            UpdateMemory();
+
+            fixed (byte* mem = _memory)
+            fixed (byte* bytes = sig.Bytes)
+            fixed (ByteCompareType* masks = sig.Masks)
             {
-                // just a straight memory compare
-                fixed (byte* mem = _memory, sig = _sig.Pattern)
+                for (int i = 0; i <= _size - lengthMask; i++)
                 {
-                    int end = _end;
-                    int index = _nextIndex;
-                    int align = _align;
-                    int sigLen = _sigLen;
-
-                    for (; index < end; index += align)
+                    for (int j = 0; j < lengthMask; j++)
                     {
-                        for (int sigIndex = 0; sigIndex < sigLen; sigIndex++)
-                        {
-                            if (sig[sigIndex] != mem[index + sigIndex])
-                                goto next;
-                        }
-
-                        // fully matched
-                        Current = index;
-                        _nextIndex = index + align;
-                        return true;
-
-                        next:
-                        ;
+                        if (!bytes[j].CompareByte(mem[i + j], masks[j]))
+                            goto next;
                     }
 
-                    return false;
-                }
-            }
-        }
-    }
+                    IntPtr ptr = (_start + i + sig.Offset);
+                    if (sig.EvaluateMatch(ptr) && EvaluateMatch(ptr))
+                    {
+                        output.Add(ptr);
+                        continue;
+                    }
 
-    public class SigScanTarget
-    {
-        public struct Signature
-        {
-            public byte[] Pattern;
-            public bool[] Mask;
-            public int Offset;
-        }
-
-        public delegate IntPtr OnFoundCallback(Process proc, SignatureScanner scanner, IntPtr ptr);
-        public OnFoundCallback OnFound { get; set; }
-
-        private List<Signature> _sigs;
-        public ReadOnlyCollection<Signature> Signatures
-        {
-            get { return _sigs.AsReadOnly(); }
-        }
-
-        public SigScanTarget()
-        {
-            _sigs = new List<Signature>();
-        }
-
-        public SigScanTarget(int offset, params string[] signature)
-            : this()
-        {
-            AddSignature(offset, signature);
-        }
-
-        public SigScanTarget(int offset, params byte[] signature)
-            : this()
-        {
-            AddSignature(offset, signature);
-        }
-
-        public SigScanTarget(params string[] signature) : this(0, signature) { }
-        // make sure to cast the first arg to byte if using params, so you don't accidentally use offset ctor
-        public SigScanTarget(params byte[] binary) : this(0, binary) { }
-
-        public void AddSignature(SigScanTarget target)
-        {
-            AddSignature(target.Signatures.FirstOrDefault().Offset, target.Signatures.FirstOrDefault().Pattern);
-        }
-
-        public void AddSignature(int offset, params string[] signature)
-        {
-            string sigStr = string.Join(string.Empty, signature).Replace(" ", string.Empty);
-            if (sigStr.Length % 2 != 0)
-                throw new ArgumentException(nameof(signature));
-
-            var sigBytes = new List<byte>();
-            var sigMask = new List<bool>();
-            var hasMask = false;
-
-            for (int i = 0; i < sigStr.Length; i += 2)
-            {
-                byte b;
-                if (byte.TryParse(sigStr.Substring(i, 2), NumberStyles.HexNumber, null, out b))
-                {
-                    sigBytes.Add(b);
-                    sigMask.Add(false);
-                }
-                else
-                {
-                    sigBytes.Add(0);
-                    sigMask.Add(true);
-                    hasMask = true;
+                    next:
+                    ;
                 }
             }
 
-            _sigs.Add(new Signature
+            return output;
+        }
+
+        public IntPtr Scan(SigCollection collection)
+        {
+            foreach (Signature sig in collection.Signatures)
             {
-                Pattern = sigBytes.ToArray(),
-                Mask = hasMask ? sigMask.ToArray() : null,
-                Offset = offset,
-            });
+                IntPtr output = Scan(sig);
+                if (output == IntPtr.Zero)
+                    continue;
+
+                if (collection.EvaluateMatch(output))
+                    return output;
+            }
+
+            return IntPtr.Zero;
         }
 
-        public void AddSignature(int offset, params byte[] binary)
+        public List<IntPtr> ScanAll(SigCollection collection)
         {
-            _sigs.Add(new Signature
+            List<IntPtr> output = new List<IntPtr>();
+
+            foreach (Signature sig in collection.Signatures)
             {
-                Pattern = binary,
-                Mask = null,
-                Offset = offset,
-            });
+                var list = ScanAll(sig);
+
+                if (list.Count() == 0)
+                    continue;
+
+                foreach (IntPtr match in list)
+                    if (collection.EvaluateMatch(match))
+                        output.Add(match);
+            }
+            return output;
         }
 
-        public void AddSignature(params string[] signature)
+        public IntPtr ScanMinimum(SigCollection collection)
         {
-            AddSignature(0, signature);
+            var results = ScanAll(collection);
+
+            if (results.Count() == 0)
+                return IntPtr.Zero;
+
+            return (IntPtr)results.ConvertAll<long>(x => x.ToInt64()).Min();
         }
 
-        public void AddSignature(params byte[] binary)
+        public bool IsWithin(IntPtr ptr)
         {
-            AddSignature(0, binary);
+            long delta = (long)ptr - (long)_start;
+            return delta > 0 && delta < _size;
+        }
+
+        public void Limit(IntPtr newStart)
+        {
+            if (!newStart.IsSmaller(End))
+                throw new Exception("Start pointer can't be further than end pointer!");
+
+            IntPtr end = End;
+            Start = newStart;
+            _size = end.SubtractI(Start);
+        }
+
+        public override string ToString()
+        {
+            return $"Sig Scanner Start [{Start}] End [{End}] Size [{Size}]";
         }
     }
 }

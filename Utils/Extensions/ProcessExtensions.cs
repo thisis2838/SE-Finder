@@ -43,9 +43,21 @@ namespace LiveSplit.ComponentUtil
     {
         private static Dictionary<int, ProcessModuleWow64Safe[]> ModuleCache = new Dictionary<int, ProcessModuleWow64Safe[]>();
 
+        public static IntPtr ReadRelativeReference(this Process p, IntPtr start)
+        {
+            if (start == IntPtr.Zero)
+                return start;
+
+            return start + p.ReadValue<int>(start + 0x1) + 0x5;
+        }
         public static ProcessModuleWow64Safe MainModuleWow64Safe(this Process p)
         {
             return p.ModulesWow64Safe().First();
+        }
+
+        public static ProcessModuleWow64Safe GetModuleWow64Safe(this Process p, string name)
+        {
+            return p.ModulesWow64Safe().FirstOrDefault(x => x.ModuleName.ToLower() == name.ToLower());
         }
 
         public static ProcessModuleWow64Safe[] ModulesWow64Safe(this Process p)
@@ -212,7 +224,7 @@ namespace LiveSplit.ComponentUtil
             catch (OverflowException)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"[UTIL] [ReadPointer] bad pointer!!!, addr {addr.ToString("X")}, value {ReadValue<uint>(process, addr):X}");
+                Console.WriteLine($"bad pointer!!!, addr {addr.ToString("X")}, value {ReadValue<uint>(process, addr):X}");
                 Console.ForegroundColor = ConsoleColor.White;
                 val = IntPtr.Zero;
                 return false;
