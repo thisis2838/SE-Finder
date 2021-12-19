@@ -186,8 +186,8 @@ namespace SE_Finder_Rewrite.Utils.Extensions
                 boundary--;
                 curPtr = curPtr - 1;
 
-                byte curByte = scanner.Process.ReadBytes(curPtr, 1)[0];
-                byte lastByte = scanner.Process.ReadBytes(curPtr + 1, 1)[0];
+                byte curByte = scanner.Process.ReadValue<byte>(curPtr, 1);
+                byte lastByte = scanner.Process.ReadValue<byte>(curPtr + 1);
 
                 sp.Print($"{boundary} bytes left, 0x{curPtr.ToString("X")} : {curByte:X02} {lastByte:X02}");
 

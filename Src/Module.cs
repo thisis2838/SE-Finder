@@ -37,14 +37,17 @@ namespace SE_Finder_Rewrite.Src
         internal ProcessModuleWow64Safe TryGetProcess()
         {
             StationaryPrint sp = new StationaryPrint(_pr);
+
             again:
             ProcessModuleWow64Safe proc = Game.GetModuleWow64Safe(Name);
+
             if (proc == null)
             {
                 sp.Print($"Couldn't find {Name}, retrying in 1s", PrintLevel.Warning);
                 Thread.Sleep(1000);
                 goto again;
             }
+
             sp.Return();
             return proc;
         }
