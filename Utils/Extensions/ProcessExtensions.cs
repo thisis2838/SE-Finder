@@ -227,7 +227,6 @@ namespace LiveSplit.ComponentUtil
                 Console.WriteLine($"bad pointer!!!, addr {addr.ToString("X")}, value {ReadValue<uint>(process, addr):X}");
                 Console.ForegroundColor = ConsoleColor.White;
                 val = IntPtr.Zero;
-                return false;
             }
 
             return true;

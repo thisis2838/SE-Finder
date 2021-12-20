@@ -50,6 +50,7 @@
     <Compile Include="Src\Module.cs" />
     <Compile Include="Src\Server.cs" />
     <Compile Include="Src\VGUIMatSurface.cs" />
+    <Compile Include="Src\VPhysics.cs" />
     <Compile Include="Utils\Extensions\ByteExtensions.cs" />
     <Compile Include="Utils\Extensions\IntPtrExtensions.cs" />
     <Compile Include="Utils\Numerics.cs" />

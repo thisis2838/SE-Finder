@@ -404,6 +404,12 @@ namespace SE_Finder_Rewrite.Utils
             return delta > 0 && delta < _size;
         }
 
+        public bool IsWithin(uint ptr)
+        {
+            long delta = (long)ptr - (long)_start;
+            return delta > 0 && delta < _size;
+        }
+
         public void Limit(IntPtr newStart)
         {
             if (!newStart.IsSmaller(End))

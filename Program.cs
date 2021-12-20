@@ -34,9 +34,6 @@ namespace SE_Finder_Rewrite
 
         static void Main(string[] args)
         {
-            //Tests.TestIntAbs();
-
-            int i = 0;
             while (true)
             {
                 Clear();
@@ -67,6 +64,7 @@ namespace SE_Finder_Rewrite
                 new Engine(),
                 new Client(),
                 new Server(),
+                new VPhysics(),
             };
 
             try

@@ -139,7 +139,7 @@ namespace SE_Finder_Rewrite.Utils.Extensions
         }
 
 
-        public static List<IntPtr> FindVFTableEntries(this SigScanner scanner, IntPtr ptr)
+        public static List<IntPtr> FindVFTableEntries(this SigScanner scanner, IntPtr ptr, bool any = false)
         {
             if (ptr == IntPtr.Zero)
                 return new List<IntPtr>();
@@ -148,8 +148,10 @@ namespace SE_Finder_Rewrite.Utils.Extensions
             p.EvaluateMatch = (a) =>
             {
                 bool aligned = (int)a % 4 == 0;
-                bool valid = scanner.IsWithin(Game.ReadPointer(a + 0x4)) 
-                && scanner.IsWithin(Game.ReadPointer(a - 0x4));
+                bool behind = scanner.IsWithin(Game.ReadPointer(a + 0x4)); 
+                bool ahead = scanner.IsWithin(Game.ReadPointer(a - 0x4));
+
+                bool valid = !any ? (behind && ahead) : (behind || ahead);
 
                 return (aligned && valid);
             };
